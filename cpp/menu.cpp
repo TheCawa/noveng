@@ -9,13 +9,12 @@
 #include <thread>
 #include <filesystem>
 #include "localisation.hpp"
+#include "logger.hpp"
 #include <regex>
 
 namespace fs = std::filesystem;
 
-
 std::string stripANSI(const std::string& str) {
-
     return std::regex_replace(str, std::regex("\x1B\\[[0-9;]*[mK]"), "");
 }
 
@@ -31,11 +30,16 @@ int getVisibleLength(const std::string& str) {
 }
 
 void MainMenu::playIntro(ma_engine* audio) {
+    Logger::getInstance().info("Starting Intro sequence...");
     fs::path hoverPath = fs::path(DIR_RES) / DIR_SFX / "hover.mp3";
     fs::path musicPath = fs::path(DIR_RES) / DIR_MUSIC / "menu.mp3";
 
-    ma_sound_init_from_file(audio, hoverPath.string().c_str(), 0, NULL, NULL, &hoverSfx);
-    ma_sound_init_from_file(audio, musicPath.string().c_str(), 0, NULL, NULL, &menuMusic);
+    if (ma_sound_init_from_file(audio, hoverPath.string().c_str(), 0, NULL, NULL, &hoverSfx) != MA_SUCCESS) {
+        Logger::getInstance().error("Failed to initialize hover SFX: " + hoverPath.string());
+    }
+    if (ma_sound_init_from_file(audio, musicPath.string().c_str(), 0, NULL, NULL, &menuMusic) != MA_SUCCESS) {
+        Logger::getInstance().error("Failed to initialize menu music: " + musicPath.string());
+    }
     
     clearScreen();
 
@@ -86,7 +90,7 @@ void MainMenu::playIntro(ma_engine* audio) {
     if (waitOrSkip(800)) { skipped = true; goto done; }
 
     std::cout << "\n";
-    typeWrite("\t\t      [ " + LocalizationManager::getInstance().get("intro_start") + " ]", 35);
+    typeWrite("\t\t       [ " + LocalizationManager::getInstance().get("intro_start") + " ]", 35);
     if (waitOrSkip(500)) { skipped = true; goto done; }
 
     {
@@ -99,12 +103,14 @@ void MainMenu::playIntro(ma_engine* audio) {
 
 done:
     if (skipped) {
+        Logger::getInstance().info("Intro skipped by user.");
         ma_uint64 frame = ma_engine_get_sample_rate(audio) * 13;
         ma_sound_seek_to_pcm_frame(&menuMusic, frame);
     }
 }
 
 void MainMenu::showSettings() {
+    Logger::getInstance().info("Entering Settings menu.");
     auto& settings = SettingsManager::getInstance().get();
     int selected = 0;
     const int maxOptions = 3;
@@ -149,11 +155,13 @@ void MainMenu::showSettings() {
             if (selected == 2) {
                 if (key == 75 || key == 77) {
                     LocalizationManager::getInstance().switchLanguage(key == 77, settings.language);
+                    Logger::getInstance().info("Language switched to: " + settings.language);
                 }
             }
         }
     }
     SettingsManager::getInstance().save();
+    Logger::getInstance().info("Settings saved and exited.");
 }
 
 int MainMenu::show() {
@@ -196,11 +204,9 @@ int MainMenu::show() {
         
         std::cout << "     \x1B[1;36m║\x1B[0m" << std::string(padLeft, ' ') << titleText << std::string(padRight, ' ') << "\x1B[1;36m║\x1B[0m\n";
         
-        // 3. Разделитель
         std::cout << "     \x1B[1;36m╠════════════════════════════════════╣\x1B[0m\n";
         std::cout << "     \x1B[1;36m║\x1B[0m" << std::string(innerWidth, ' ') << "\x1B[1;36m║\x1B[0m\n";
 
-        // 4. Пункты меню
         for (int i = 0; i < itemCount; i++) {
             std::string prefix = (i == selected) ? " > " : "   ";
             std::string text = items[i];
@@ -219,7 +225,6 @@ int MainMenu::show() {
             std::cout << std::string(spacesToAdd, ' ') << "\x1B[1;36m║\x1B[0m\n";
         }
 
-        // 5. Нижняя граница
         std::cout << "     \x1B[1;36m║\x1B[0m" << std::string(innerWidth, ' ') << "\x1B[1;36m║\x1B[0m\n";
         std::cout << "     \x1B[1;36m╚════════════════════════════════════╝\x1B[0m\n";
         std::cout << "\n     [ " << lm.get("menu_hint") << " ]\n";
@@ -246,6 +251,8 @@ int MainMenu::show() {
             int action = selected;
             if (!hasSave) action += 1; 
 
+            Logger::getInstance().info("Menu selection: Action ID " + std::to_string(action));
+
             switch (action) {
                 case 0: ma_sound_stop(&menuMusic); return 2;
                 case 1: ma_sound_stop(&menuMusic); return 1; 
@@ -263,9 +270,19 @@ int MainMenu::show() {
 }
 
 void MainMenu::showAbout() {
+    Logger::getInstance().info("Showing About screen.");
     clearScreen();
-    std::cout << "\x1B[1;32m" << "--- INFO ---" << "\x1B[0m\n\n";
-    std::cout << LocalizationManager::getInstance().get("about_text") << std::endl;
-    std::cout << "\n" << LocalizationManager::getInstance().get("btn_back") << "...";
+    auto& lang = LocalizationManager::getInstance();
+    std::cout << "\x1B[1;32m" << "--- " << APP_NAME << " INFO ---" << "\x1B[0m\n\n";
+    std::cout << lang.get("about_text") << std::endl;
+
+    #if USE_CUSTOM_ABOUT == true
+        std::cout << "\n\x1B[1;33m" << "--- " << lang.get("extra_info_header") << " ---" << "\x1B[0m\n";
+        std::cout << lang.get("about_extra_desc") << std::endl;
+        std::cout << APP_NAME << " Version: " << APP_VERSION << std::endl;
+    #endif
+
+    std::cout << "\nDeveloped by: \x1B]8;;https://cawas.duckdns.org/me.html\x1B\\\x1B[1;34mTheCawa\x1B[0m\x1B]8;;\x1B\\" << std::endl;
+    std::cout << "\n" << lang.get("btn_back") << "...";
     _getch();
 }

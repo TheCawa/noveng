@@ -15,3 +15,4 @@ settings.json
 Thumbs.db
 .DS_Store
 res/scenario/scenario_old.txt
+res/log/*.log

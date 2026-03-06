@@ -14,7 +14,7 @@
     "menu_about": "About",
     "menu_exit": "Exit",
     "menu_hint": "↑ ↓ — navigate | Enter — select",
-    "about_text": "This engine was developed by TheCawa ( CawaRUS )",
+    "about_text": "This engine was developed by TheCawa",
     "btn_back": "Press any key to return",
     "game_over_prompt": "Game over or returning to menu. Press any key...",
     "audio_error": "Audio engine error!",

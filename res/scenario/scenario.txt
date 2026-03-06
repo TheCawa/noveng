@@ -1,17 +1,20 @@
 {color: Система | 36}
 {color: Голос | 33}
+{type: Система | 1.2}
+{type: Голос | 0.7}
 {clear}
 {play: gorez.mp3 | loop}
 
+
 [Система]
 Запуск диагностики...
-Версия движка NovEng v0.3
+Версия движка NovEng v0.4
 Тестирование всех команд...
 
 {set: test_flag | 0}
-{sfx: computer_beep.mp3}
+{sfx: hover.mp3}
 [Система]
-Переменная test_flag установлена в 0
+Переменная test_flag установлена в 0 ( $test_flag$ )
 
 {clear}
 {color: Исследователь | 32}

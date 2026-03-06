@@ -10,6 +10,6 @@
 
 {set: trust_level | 5}
 [Система]
-trust_level установлен на 5
+trust_level установлен на 5 ( $trust_level$ )
 
 {chance:50|test_happy.txt|test_scary.txt}

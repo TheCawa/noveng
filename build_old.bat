@@ -1,7 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-
 if exist config.cfg (
     for /f "delims=" %%x in (config.cfg) do (set "%%x")
 )
@@ -12,6 +11,7 @@ if "%DIR_SCENARIO%"=="" set DIR_SCENARIO=scenario
 if "%DIR_MUSIC%"=="" set DIR_MUSIC=music
 if "%DIR_SFX%"=="" set DIR_SFX=sfx
 if "%DIR_SAVE%"=="" set DIR_SAVE=save
+if "%USE_CUSTOM_ABOUT%"=="" set USE_CUSTOM_ABOUT=false
 
 set SRC_DIR=cpp
 set HDR_DIR=hpp
@@ -19,28 +19,36 @@ set OBJ_DIR=build
 set LIBS=-lole32 -lwinmm
 
 set DEFINES=-DAPP_VERSION=\"%APP_VERSION%\" -DAPP_NAME=\"%APP_NAME%\" ^
--DDIR_RES=\"%DIR_RES%\" -DDIR_SCENARIO=\"%DIR_SCENARIO%\" ^
+-DUSE_CUSTOM_ABOUT=%USE_CUSTOM_ABOUT% -DDIR_RES=\"%DIR_RES%\" -DDIR_SCENARIO=\"%DIR_SCENARIO%\" ^
 -DDIR_MUSIC=\"%DIR_MUSIC%\" -DDIR_SFX=\"%DIR_SFX%\" -DDIR_SAVE=\"%DIR_SAVE%\"
-color 4
-echo This build is not up to date, use build.bat instead
-color 7
+
 echo [1/4] Cleaning old files...
-if exist %OBJ_DIR%\*.o del %OBJ_DIR%\*.o
 if exist %TARGET_NAME% del %TARGET_NAME%
-if not exist %OBJ_DIR% mkdir %OBJ_DIR%
+if exist %OBJ_DIR% rd /s /q %OBJ_DIR%
+mkdir %OBJ_DIR%
+mkdir %OBJ_DIR%\cmds
 
 echo [2/4] Compiling Modules for %APP_NAME%...
 set OBJECTS=
 
-for %%f in (%SRC_DIR%\*.cpp) do (
-    echo Compiling: %%~nxf...
-    g++ -c %%f -o %OBJ_DIR%\%%~nf.o -I %HDR_DIR% -std=c++17 -Wall %DEFINES%
+for /r %SRC_DIR% %%f in (*.cpp) do (
+    set "abspath=%%f"
+    set "relpath=!abspath:%CD%\%SRC_DIR%\=!"
+    set "objpath=%OBJ_DIR%\!relpath:.cpp=.o!"
+    
+    echo Compiling: !relpath!...
+    
+    for %%d in ("!objpath!") do if not exist "%%~dpd" mkdir "%%~dpd"
+
+    g++ -c "%%f" -o "!objpath!" -I %HDR_DIR% -std=c++17 -Wall %DEFINES%
+    
     if !errorlevel! neq 0 (
+        color 4
         echo [ERROR] Failed to compile %%f
         pause
         exit /b
     )
-    set OBJECTS=!OBJECTS! %OBJ_DIR%\%%~nf.o
+    set OBJECTS=!OBJECTS! "!objpath!"
 )
 
 echo [3/4] Linking %TARGET_NAME%...
@@ -50,7 +58,10 @@ if %errorlevel% equ 0 (
     color 2
     echo [4/4] Success!
     color 7
+    echo Launching...
     %TARGET_NAME%
 ) else (
+    color 4
+    echo [ERROR] Linking failed.
     pause
 )

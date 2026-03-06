@@ -1,19 +1,9 @@
 {clear}
 {color: Система | 35}
-
+{volume: 0.3}
 [Система]
 ФИНАЛЬНОЕ ТЕСТИРОВАНИЕ
-Все команды движка проверены:
-✓ play и stop_music
-✓ sfx
-✓ color
-✓ clear
-✓ set
-✓ chance
-✓ if
-✓ choice
-✓ next_chapter
-
+Все команды движка проверены ( наверное )!
 {stop_music}
 {sfx: hover.mp3}
 
