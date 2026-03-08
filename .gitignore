@@ -1,6 +1,6 @@
 
 build/
-*.exe
+game.exe
 *.o
 *.obj
 *.pdb
