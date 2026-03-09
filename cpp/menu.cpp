@@ -37,10 +37,12 @@ void MainMenu::playIntro(ma_engine* audio) {
     if (ma_sound_init_from_file(audio, hoverPath.string().c_str(), 0, NULL, NULL, &hoverSfx) != MA_SUCCESS) {
         Logger::getInstance().error("Failed to initialize hover SFX: " + hoverPath.string());
     }
-    if (ma_sound_init_from_file(audio, musicPath.string().c_str(), 0, NULL, NULL, &menuMusic) != MA_SUCCESS) {
+    if (ma_sound_init_from_file(audio, musicPath.string().c_str(), 0, NULL, NULL, &menuMusic) == MA_SUCCESS) {
+        ma_sound_set_volume(&menuMusic, SettingsManager::getInstance().get().musicVolume);
+    } else {
         Logger::getInstance().error("Failed to initialize menu music: " + musicPath.string());
     }
-    
+
     clearScreen();
 
     auto typeWrite = [](const std::string& text, int delayMs = 50) {
@@ -147,6 +149,7 @@ void MainMenu::showSettings() {
             if (selected == 0) {
                 if (key == 75) settings.musicVolume = std::max(0.0f, settings.musicVolume - 0.05f);
                 if (key == 77) settings.musicVolume = std::min(1.0f, settings.musicVolume + 0.05f);
+                ma_sound_set_volume(&menuMusic, settings.musicVolume);
             }
             if (selected == 1) {
                 if (key == 75) settings.typingSpeed = std::max(0, settings.typingSpeed - 5);

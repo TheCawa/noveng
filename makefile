@@ -8,7 +8,8 @@ DIR_SAVE ?= save
 USE_CUSTOM_ABOUT ?= false
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -I$(HDR_DIR) \
+
+CXXFLAGS = -std=c++17 -Wall -I$(HDR_DIR) -MMD -MP \
            -DAPP_VERSION=\"$(APP_VERSION)\" \
            -DAPP_NAME=\"$(APP_NAME)\" \
            -DDEFAULT_LANG=\"$(DEFAULT_LANG)\" \
@@ -16,7 +17,7 @@ CXXFLAGS = -std=c++17 -Wall -I$(HDR_DIR) \
            -DDIR_SCENARIO=\"$(DIR_SCENARIO)\" \
            -DDIR_MUSIC=\"$(DIR_MUSIC)\" \
            -DDIR_SFX=\"$(DIR_SFX)\" \
-           -DDIR_SAVE=\"$(DIR_SAVE)\"\
+           -DDIR_SAVE=\"$(DIR_SAVE)\" \
            -DUSE_CUSTOM_ABOUT=$(USE_CUSTOM_ABOUT)
 
 TARGET = $(if $(TARGET_NAME),$(TARGET_NAME),game.exe)
@@ -28,8 +29,8 @@ OBJ_DIR = build
 CORE_SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
 CMD_SOURCES  = $(wildcard $(SRC_DIR)/cmds/*.cpp)
 
-CORE_OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(CORE_SOURCES))
-CMD_OBJECTS  = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(CMD_SOURCES))
+CORE_OBJECTS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(CORE_SOURCES))
+CMD_OBJECTS  = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(CMD_SOURCES))
 
 ALL_OBJECTS = $(CORE_OBJECTS) $(CMD_OBJECTS)
 
@@ -39,10 +40,10 @@ all: prepare $(TARGET)
 
 $(TARGET): $(ALL_OBJECTS)
 	@echo [3/4] Linking: $@
-	@$(CXX) $(CORE_OBJECTS) -Wl,--whole-archive $(CMD_OBJECTS) -Wl,--no-whole-archive -o $@ $(LDFLAGS)
+	@$(CXX) $(ALL_OBJECTS) -o $@ $(LDFLAGS)
 	@echo [4/4] Success! Project: $(APP_NAME) v$(APP_VERSION)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp config.cfg
 	@if not exist $(subst /,\,$(dir $@)) mkdir $(subst /,\,$(dir $@))
 	@echo Compiling: $<...
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -59,5 +60,7 @@ clean:
 run: all
 	@echo Running $(TARGET)...
 	@./$(TARGET)
+
+-include $(ALL_OBJECTS:.o=.d)
 
 .PHONY: all prepare clean run

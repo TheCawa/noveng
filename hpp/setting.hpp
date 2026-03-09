@@ -4,10 +4,14 @@
 
 using json = nlohmann::json;
 
+#ifndef DEFAULT_LANG
+#define DEFAULT_LANG "ru"
+#endif
+
 struct ConfigData {
     float musicVolume = 0.5f;
     int typingSpeed = 30;
-    std::string language = "ru";
+    std::string language = DEFAULT_LANG;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConfigData, musicVolume, typingSpeed, language)
