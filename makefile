@@ -13,7 +13,7 @@ TARGET_NAME ?= game.exe
 DECRYPT ?= false
 ASSET_KEY ?= keyok
 
-CXX = .\mingw64\bin\g++.exe
+CXX = .\make\g++.exe
 
 CXXFLAGS = -std=c++17 -Wall -I$(HDR_DIR) -MMD -MP \
            -DAPP_VERSION=\"$(APP_VERSION)\" \
