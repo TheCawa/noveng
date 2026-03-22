@@ -1,19 +1,31 @@
 @echo off
 setlocal enabledelayedexpansion
 
-chcp 65001 >nul
-
-set "MAKE=.\make\make.exe"
-
 for /f "tokens=2 delims=:." %%i in ('chcp') do (
     set "CP=%%i"
     set "CP=!CP: =!"
 )
 
+if not "!CP!"=="65001" (
+    chcp 65001 >nul
+    "%~f0" --utf8-relaunched "!CP!" %*
+    exit /b
+)
+
+if "%~1"=="--utf8-relaunched" (
+    set "ORIGINAL_CP=%~2"
+    shift
+    shift
+) else (
+    set "ORIGINAL_CP=!CP!"
+)
+
+set "MAKE=.\make\make.exe"
+
 set "LANGMODE=EN"
-if "%CP%"=="866" set "LANGMODE=RU"
-if "%CP%"=="1251" set "LANGMODE=RU"
-if "%CP%"=="65001" set "LANGMODE=RU"
+if "!ORIGINAL_CP!"=="866" set "LANGMODE=RU"
+if "!ORIGINAL_CP!"=="1251" set "LANGMODE=RU"
+if "!ORIGINAL_CP!"=="65001" set "LANGMODE=RU"
 
 if "%LANGMODE%"=="RU" (
     set "MSG_THREADS=Обнаружено потоков CPU:"
