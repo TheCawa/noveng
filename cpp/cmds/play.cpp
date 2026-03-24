@@ -8,20 +8,41 @@ public:
     void execute(NovelEngine* eng, const std::vector<std::string>& args) override {
         if (args.empty()) return;
         if (eng->currentMusicFile == args[0] && !eng->activeSounds.empty()) return;
-        
+
         eng->stopAudio();
         eng->currentMusicFile = args[0];
-        std::filesystem::path path = std::filesystem::path(DIR_RES) / DIR_MUSIC / args[0];
         
-        auto pSound = std::make_unique<ma_sound>();
-        if (ma_sound_init_from_file(&eng->audio, path.string().c_str(), 0, NULL, NULL, pSound.get()) == MA_SUCCESS) {
+        std::filesystem::path path = std::filesystem::path(DIR_RES) / DIR_MUSIC / args[0];
+        auto data = eng->readFile(path.string());
+        if (data.empty()) {
+            Logger::getInstance().error("Music file not found or empty: " + path.string());
+            return;
+        }
+        auto pActiveSound = std::make_unique<ActiveSound>();
+        pActiveSound->data = std::move(data);
+        
+        ma_result res = ma_decoder_init_memory(pActiveSound->data.data(), pActiveSound->data.size(), NULL, &pActiveSound->decoder);
+        if (res != MA_SUCCESS) {
+            Logger::getInstance().error("Failed to decode BGM from memory: " + args[0]);
+            return;
+        }
+
+        if (ma_sound_init_from_data_source(&eng->audio, &pActiveSound->decoder, 0, NULL, &pActiveSound->sound) == MA_SUCCESS) {
+            pActiveSound->initialized = true;
             bool looping = false;
-            for (const auto& arg : args) if (arg == "loop") looping = true;
-            ma_sound_set_looping(pSound.get(), looping ? MA_TRUE : MA_FALSE);
-            ma_sound_start(pSound.get());
-            eng->activeSounds.push_back(std::move(pSound));
-            Logger::getInstance().debug("BGM Started: " + args[0]);
+            for (const auto& arg : args) {
+                if (arg == "loop") looping = true;
+            }
+            
+            ma_sound_set_looping(&pActiveSound->sound, looping ? MA_TRUE : MA_FALSE);
+            ma_sound_start(&pActiveSound->sound);
+            eng->activeSounds.push_back(std::move(pActiveSound));
+            Logger::getInstance().debug("BGM Started (Memory): " + args[0]);
+        } else {
+            Logger::getInstance().error("Failed to init sound from data source: " + args[0]);
+            ma_decoder_uninit(&pActiveSound->decoder);
         }
     }
 };
+
 REGISTER_COMMAND(CmdPlay, "play")

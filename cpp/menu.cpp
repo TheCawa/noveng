@@ -31,16 +31,50 @@ int getVisibleLength(const std::string& str) {
 
 void MainMenu::playIntro(ma_engine* audio) {
     Logger::getInstance().info("Starting Intro sequence...");
-    fs::path hoverPath = fs::path(DIR_RES) / DIR_SFX / "hover.mp3";
-    fs::path musicPath = fs::path(DIR_RES) / DIR_MUSIC / "menu.mp3";
+    auto loadAsset = [](const std::string& path) -> std::vector<char> {
+        std::ifstream file(path, std::ios::binary);
+        if (!file.is_open()) return {};
+        std::vector<char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+        #if USE_DECRYPT == 1
+            std::string key = ASSET_KEY;
+            if (!key.empty()) {
+                for (size_t i = 0; i < buffer.size(); ++i) {
+                    buffer[i] ^= key[i % key.length()];
+                }
+            }
+        #endif
+        return buffer;
+    };
 
-    if (ma_sound_init_from_file(audio, hoverPath.string().c_str(), 0, NULL, NULL, &hoverSfx) != MA_SUCCESS) {
-        Logger::getInstance().error("Failed to initialize hover SFX: " + hoverPath.string());
-    }
-    if (ma_sound_init_from_file(audio, musicPath.string().c_str(), 0, NULL, NULL, &menuMusic) == MA_SUCCESS) {
-        ma_sound_set_volume(&menuMusic, SettingsManager::getInstance().get().musicVolume);
+    std::string hoverPath = (fs::path(DIR_RES) / DIR_SFX / "hover.mp3").string();
+    std::string musicPath = (fs::path(DIR_RES) / DIR_MUSIC / "menu.mp3").string();
+    static std::vector<char> hoverData = loadAsset(hoverPath);
+    static std::vector<char> musicData = loadAsset(musicPath);
+    static ma_decoder hoverDec, musicDec;
+    
+    if (!hoverData.empty()) {
+        ma_result res = ma_decoder_init_memory(hoverData.data(), hoverData.size(), NULL, &hoverDec);
+        if (res == MA_SUCCESS) {
+            ma_sound_init_from_data_source(audio, &hoverDec, 0, NULL, &hoverSfx);
+        } else {
+            Logger::getInstance().error("Failed to decode hover SFX from memory!");
+        }
     } else {
-        Logger::getInstance().error("Failed to initialize menu music: " + musicPath.string());
+        Logger::getInstance().error("Hover SFX file not found: " + hoverPath);
+    }
+
+    if (!musicData.empty()) {
+        ma_result res = ma_decoder_init_memory(musicData.data(), musicData.size(), NULL, &musicDec);
+        if (res == MA_SUCCESS) {
+            if (ma_sound_init_from_data_source(audio, &musicDec, 0, NULL, &menuMusic) == MA_SUCCESS) {
+                ma_sound_set_volume(&menuMusic, SettingsManager::getInstance().get().musicVolume);
+            }
+        } else {
+            Logger::getInstance().error("Failed to decode menu music from memory!");
+        }
+    } else {
+        Logger::getInstance().error("Menu music file not found: " + musicPath);
     }
 
     clearScreen();
@@ -279,7 +313,7 @@ void MainMenu::showAbout() {
     std::cout << "\x1B[1;32m" << "--- " << APP_NAME << " INFO ---" << "\x1B[0m\n\n";
     std::cout << lang.get("about_text") << std::endl;
 
-    #if USE_CUSTOM_ABOUT == true
+    #if USE_CUSTOM_ABOUT == 1
         std::cout << "\n\x1B[1;33m" << "--- " << lang.get("extra_info_header") << " ---" << "\x1B[0m\n";
         std::cout << lang.get("about_extra_desc") << std::endl;
         std::cout << APP_NAME << " Version: " << APP_VERSION << std::endl;

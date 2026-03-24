@@ -1,0 +1,21 @@
+Обнаружено потоков CPU: 16
+Рекомендуемое количество: 15
+
+Введите количество потоков (Enter = 15):
+
+1 - Сборка
+2 - Сборка и запуск
+3 - Очистка
+
+Выберите действие: : 1
+
+Compiling: cpp/engine.cpp...
+process_begin: CreateProcess(NULL, g++ -std=c++17 -Wall -Ihpp -MMD -MP -DAPP_VERSION=\"0.4\" -DAPP_NAME=\"NovEng\" -DDEFAULT_LANG=\"ru\" -DDIR_RES=\"res\" -DDIR_SCENARIO=\"scenario\" -DDIR_MUSIC=\"music\" -DDIR_SFX=\"sfx\" -DDIR_SAVE=\"save\" -DUSE_CUSTOM_ABOUT=0 -DUSE_DECRYPT=0 -DASSET_KEY=\"keyok\" -c cpp/engine.cpp -o build/engine.o, ...) failed.
+make (e=2): ═х єфрхЄё  эрщЄш єърчрээ√щ Їрщы.
+make: *** [makefile:57: build/engine.o] Error 2
+make: *** Waiting for unfinished jobs....
+
+Сборка завершена за 19:08:08,02 > 19:08:08,41
+Для продолжения нажмите любую клавишу . . .
+
+( новая проблема, теперь у друга проект просто не собирается игра, стоит походу пофиксить makefile )

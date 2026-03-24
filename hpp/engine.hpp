@@ -25,6 +25,19 @@ struct LogEntry {
     std::string text;
     std::string color;
 };
+
+struct ActiveSound {
+    std::vector<char> data;
+    ma_decoder decoder;
+    ma_sound sound;
+    bool initialized = false;
+    ~ActiveSound() {
+        if (initialized) {
+            ma_sound_uninit(&sound);
+            ma_decoder_uninit(&decoder);
+        }
+    }
+};
 struct GameState {
     std::string currentScene;
     size_t eventIndex;
@@ -50,7 +63,7 @@ public:
     std::map<std::string, int> variables;
     std::map<std::string, std::string> characterColors;
     std::map<std::string, float> characterPitches;
-    std::vector<std::unique_ptr<ma_sound>> activeSounds;
+    std::vector<std::unique_ptr<ActiveSound>> activeSounds;
     std::string currentMusicFile = "";
     bool chapterFinished = false;
     ma_engine* getAudio() { return &audio; }
@@ -59,6 +72,7 @@ public:
     std::string getNextChapter() { return nextChapterFile; }
     void resetChapterFlag() { chapterFinished = false; nextChapterFile = ""; }
     std::string nextChapterFile = "";
+    std::vector<char> readFile(const std::string& path);
     std::string currentSpeaker;
     void saveGame(int slot = 1);
     bool loadGame(int slot = 1);

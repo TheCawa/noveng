@@ -143,8 +143,9 @@ void NovelEngine::applySettings() {
 
 void NovelEngine::stopAudio() {
     for (auto& s : activeSounds) {
-        ma_sound_stop(s.get());
-        ma_sound_uninit(s.get());
+        if (s->initialized) {
+            ma_sound_stop(&s->sound);
+        }
     }
     activeSounds.clear();
 }
@@ -152,9 +153,8 @@ void NovelEngine::stopAudio() {
 void NovelEngine::cleanupSounds() {
     activeSounds.erase(
         std::remove_if(activeSounds.begin(), activeSounds.end(),
-            [](const std::unique_ptr<ma_sound>& s) {
-                if (!ma_sound_is_playing(s.get())) {
-                    ma_sound_uninit(s.get());
+            [](const std::unique_ptr<ActiveSound>& s) {
+                if (s->initialized && !ma_sound_is_playing(&s->sound)) {
                     return true;
                 }
                 return false;
@@ -164,14 +164,36 @@ void NovelEngine::cleanupSounds() {
 }
 
 void NovelEngine::playSFX(const std::string& filename, float pitch) {
-    fs::path path = fs::path(DIR_RES) / DIR_SFX / filename;
-    if (!fs::exists(path)) return;
+    if (activeSounds.size() > 20) {
+        cleanupSounds();
+    }
+
+    std::filesystem::path path = std::filesystem::path(DIR_RES) / DIR_SFX / filename;
+    auto data = readFile(path.string());
+    if (data.empty()) {
+        Logger::getInstance().error("SFX file not found: " + path.string());
+        return;
+    }
+
+    auto pActiveSound = std::make_unique<ActiveSound>();
+    pActiveSound->data = std::move(data);
     
-    auto pSfx = std::make_unique<ma_sound>();
-    if (ma_sound_init_from_file(&audio, path.string().c_str(), 0, NULL, NULL, pSfx.get()) == MA_SUCCESS) {
-        ma_sound_set_pitch(pSfx.get(), pitch);
-        ma_sound_start(pSfx.get());
-        activeSounds.push_back(std::move(pSfx));
+    ma_result res = ma_decoder_init_memory(pActiveSound->data.data(), pActiveSound->data.size(), NULL, &pActiveSound->decoder);
+    if (res != MA_SUCCESS) {
+        Logger::getInstance().error("Failed to decode SFX memory: " + filename);
+        return;
+    }
+
+    res = ma_sound_init_from_data_source(&audio, &pActiveSound->decoder, MA_SOUND_FLAG_DECODE, NULL, &pActiveSound->sound);
+    
+    if (res == MA_SUCCESS) {
+        pActiveSound->initialized = true;
+        ma_sound_set_pitch(&pActiveSound->sound, pitch);
+        ma_sound_start(&pActiveSound->sound);
+        activeSounds.push_back(std::move(pActiveSound));
+    } else {
+        Logger::getInstance().error("Failed to init sound source: " + filename);
+        ma_decoder_uninit(&pActiveSound->decoder);
     }
 }
 
@@ -198,6 +220,22 @@ void NovelEngine::typeText(const std::string& text, int speedMs) {
     std::cout << std::endl;
 }
 
+std::vector<char> NovelEngine::readFile(const std::string& path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) return {};
+    std::vector<char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+    if (USE_DECRYPT) {
+        std::string key = ASSET_KEY;
+        if (!key.empty()) {
+            for (size_t i = 0; i < buffer.size(); ++i) {
+                buffer[i] ^= key[i % key.length()];
+            }
+        }
+    }
+    return buffer;
+}
+
 std::string NovelEngine::replaceMacros(std::string text) {
     size_t startPos = 0;
     while ((startPos = text.find('$', startPos)) != std::string::npos) {
@@ -212,16 +250,20 @@ std::string NovelEngine::replaceMacros(std::string text) {
 }
 
 bool NovelEngine::loadScenario(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file.is_open()) return false;
-    
+    auto data = readFile(filename);
+    if (data.empty()) return false;
+
     events.clear();
     currentChapterFile = filename;
-    std::string line, currentName = LocalizationManager::getInstance().get("system_name");
-    
-    while (std::getline(file, line)) {
+
+    std::string content(data.begin(), data.end());
+    std::istringstream stream(content);
+    std::string line, currentName = "System";
+
+    while (std::getline(stream, line)) {
         line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
         if (line.empty()) continue;
+        
         if (line.front() == '[' && line.back() == ']') {
             currentName = line.substr(1, line.size() - 2);
         } else if (line.front() == '{' && line.back() == '}') {
