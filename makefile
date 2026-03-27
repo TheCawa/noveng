@@ -13,7 +13,7 @@ TARGET_NAME ?= game.exe
 DECRYPT ?= false
 ASSET_KEY ?= keyok
 
-CXX = .\make\g++.exe
+CXX = g++
 
 CXXFLAGS = -std=c++17 -Wall -I$(HDR_DIR) -MMD -MP \
            -DAPP_VERSION=\"$(APP_VERSION)\" \
@@ -25,7 +25,7 @@ CXXFLAGS = -std=c++17 -Wall -I$(HDR_DIR) -MMD -MP \
            -DDIR_SFX=\"$(DIR_SFX)\" \
            -DDIR_SAVE=\"$(DIR_SAVE)\" \
            -DUSE_CUSTOM_ABOUT=$(if $(filter true,$(USE_CUSTOM_ABOUT)),1,0) \
-           -DUSE_DECRYPT=$(if $(filter true,$(DECRYPT)),1,0) \
+           -DUSE_DECRYPT=$(if $(filter true,$(strip $(DECRYPT))),1,0) \
            -DASSET_KEY=\"$(ASSET_KEY)\"
 
 LDFLAGS = -lole32 -lwinmm -static -static-libgcc -static-libstdc++
@@ -45,7 +45,7 @@ all: prepare $(PACKER_EXE) $(TARGET) deploy
 
 $(PACKER_EXE): $(PACKER_SRC)
 	@echo [1/4] Building...
-	@$(CXX) -std=c++17 $(PACKER_SRC) -o $(PACKER_EXE)
+	@$(CXX) -std=c++17 $(PACKER_SRC) -o $(PACKER_EXE) $(LDFLAGS)
 
 prepare:
 	@if not exist $(OBJ_DIR) mkdir $(OBJ_DIR)

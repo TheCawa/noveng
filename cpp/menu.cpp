@@ -14,6 +14,9 @@
 
 namespace fs = std::filesystem;
 
+static bool isMusicReady = false;
+static bool isHoverReady = false;
+
 std::string stripANSI(const std::string& str) {
     return std::regex_replace(str, std::regex("\x1B\\[[0-9;]*[mK]"), "");
 }
@@ -56,7 +59,9 @@ void MainMenu::playIntro(ma_engine* audio) {
     if (!hoverData.empty()) {
         ma_result res = ma_decoder_init_memory(hoverData.data(), hoverData.size(), NULL, &hoverDec);
         if (res == MA_SUCCESS) {
-            ma_sound_init_from_data_source(audio, &hoverDec, 0, NULL, &hoverSfx);
+            if (ma_sound_init_from_data_source(audio, &hoverDec, 0, NULL, &hoverSfx) == MA_SUCCESS) {
+                isHoverReady = true;
+            }
         } else {
             Logger::getInstance().error("Failed to decode hover SFX from memory!");
         }
@@ -69,6 +74,7 @@ void MainMenu::playIntro(ma_engine* audio) {
         if (res == MA_SUCCESS) {
             if (ma_sound_init_from_data_source(audio, &musicDec, 0, NULL, &menuMusic) == MA_SUCCESS) {
                 ma_sound_set_volume(&menuMusic, SettingsManager::getInstance().get().musicVolume);
+                isMusicReady = true;
             }
         } else {
             Logger::getInstance().error("Failed to decode menu music from memory!");
@@ -104,8 +110,8 @@ void MainMenu::playIntro(ma_engine* audio) {
                     |_| \_|\___/  \_/  |_____|_| \_|\____|                                       
     )";
 
-    ma_sound_set_looping(&menuMusic, MA_TRUE);
-    ma_sound_start(&menuMusic);
+    if (isMusicReady) ma_sound_set_looping(&menuMusic, MA_TRUE);
+    if (isMusicReady) ma_sound_start(&menuMusic);
 
     auto startTime = std::chrono::steady_clock::now();
     bool skipped = false;
@@ -141,7 +147,7 @@ done:
     if (skipped) {
         Logger::getInstance().info("Intro skipped by user.");
         ma_uint64 frame = ma_engine_get_sample_rate(audio) * 13;
-        ma_sound_seek_to_pcm_frame(&menuMusic, frame);
+        if (isMusicReady) ma_sound_seek_to_pcm_frame(&menuMusic, frame);
     }
 }
 
@@ -176,14 +182,14 @@ void MainMenu::showSettings() {
             if (key == 80) selected = (selected + 1) % maxOptions; // Вниз
 
             if (selected != prevSelected) {
-                ma_sound_seek_to_pcm_frame(&hoverSfx, 0);
-                ma_sound_start(&hoverSfx);
+                if (isHoverReady) ma_sound_seek_to_pcm_frame(&hoverSfx, 0);
+                if (isHoverReady) ma_sound_start(&hoverSfx);
             }
             
             if (selected == 0) {
                 if (key == 75) settings.musicVolume = std::max(0.0f, settings.musicVolume - 0.05f);
                 if (key == 77) settings.musicVolume = std::min(1.0f, settings.musicVolume + 0.05f);
-                ma_sound_set_volume(&menuMusic, settings.musicVolume);
+                if (isMusicReady) ma_sound_set_volume(&menuMusic, settings.musicVolume);
             }
             if (selected == 1) {
                 if (key == 75) settings.typingSpeed = std::max(0, settings.typingSpeed - 5);
@@ -202,7 +208,7 @@ void MainMenu::showSettings() {
 }
 
 int MainMenu::show() {
-    if (ma_sound_is_playing(&menuMusic) == MA_FALSE) {
+    if (isMusicReady && ma_sound_is_playing(&menuMusic) == MA_FALSE) {
         ma_sound_seek_to_pcm_frame(&menuMusic, 0);
         ma_sound_start(&menuMusic);
     }
@@ -275,8 +281,8 @@ int MainMenu::show() {
             if (key == 80) selected = (selected + 1) % itemCount;             // ↓
             
             if (selected != prevSelected) {
-                ma_sound_seek_to_pcm_frame(&hoverSfx, 0);
-                ma_sound_start(&hoverSfx);
+                if (isHoverReady) ma_sound_seek_to_pcm_frame(&hoverSfx, 0);
+                if (isHoverReady) ma_sound_start(&hoverSfx);
             }
             continue;
         }
@@ -291,8 +297,8 @@ int MainMenu::show() {
             Logger::getInstance().info("Menu selection: Action ID " + std::to_string(action));
 
             switch (action) {
-                case 0: ma_sound_stop(&menuMusic); return 2;
-                case 1: ma_sound_stop(&menuMusic); return 1; 
+                case 0: if (isMusicReady) ma_sound_stop(&menuMusic); return 2;
+                case 1: if (isMusicReady) ma_sound_stop(&menuMusic); return 1; 
                 case 2: showSettings(); break;
                 case 3: showAbout(); break;
                 case 4: return 0;
